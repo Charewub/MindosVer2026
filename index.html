@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
+  <meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Classroom Activity</title>
   <style>
     body { font-family: 'Kanit', sans-serif; background-color: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
     
@@ -91,7 +92,7 @@
   </div>
 
   <script>
-    // ✅ ลิงก์รูปภาพ 5 รูป (ต้องตรงกับ Dashboard)
+    // ✅ ลิงก์รูปภาพ 5 รูป
     var imageList = [
       "https://i.postimg.cc/76PdMBXR/Slide2-0.png",
       "https://i.postimg.cc/631jVB86/Slide3-0.png",
@@ -101,7 +102,7 @@
     ];
 
     var currentIndex = 0;
-    var userHistory = []; // ตัวแปรเก็บประวัติคำตอบของนักเรียนคนนี้
+    var userHistory = []; // ตัวแปรเก็บประวัติคำตอบ
 
     window.onload = function() {
       loadState();
@@ -124,7 +125,7 @@
         // Reset Button
         var btn = document.getElementById('btnSubmit');
         btn.disabled = false;
-        btn.innerText = "ส่งคำตอบ";
+        btn.innerText = "ส่งคำตอบ"; // กลับมาเป็นข้อความปกติ
         
         // Focus ช่องแรก
         setTimeout(() => document.getElementById('w1').focus(), 100);
@@ -151,10 +152,12 @@
       }
 
       var btn = document.getElementById('btnSubmit');
-      btn.innerText = "กำลังบันทึก...";
+      
+      // เปลี่ยนปุ่มเป็นสถานะกำลังโหลดแป๊บนึง เพื่อความสวยงาม
+      btn.innerText = "บันทึกแล้ว...";
       btn.disabled = true;
 
-      // 1. เก็บข้อมูลลงตัวแปร Local ไว้แสดงผลตอนจบ
+      // 1. เก็บข้อมูลลงตัวแปร Local
       userHistory.push({
         imgIndex: currentIndex,
         w1: w1,
@@ -162,16 +165,11 @@
         w3: w3
       });
 
-      // 2. ส่งข้อมูลไป Server
-      var data = { 
-        imgId: currentIndex + 1, 
-        w1: w1, w2: w2, w3: w3 
-      };
-
-      google.script.run.withSuccessHandler(function(){
+      // 2. ไปหน้าถัดไป (จำลองการโหลดนิดหน่อย 0.5 วินาที)
+      setTimeout(function() {
         currentIndex++;
         loadState();
-      }).saveAnswers(data);
+      }, 300);
     }
 
     // ฟังก์ชันสร้างหน้าสรุป
