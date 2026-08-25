@@ -10,8 +10,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
   
+  <!-- ✅ เพิ่ม SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
   <style>
-    body { font-family: 'Kanit', sans-serif; background-color: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
+    body { font-family: 'Kanit', sans-serif; background-color: #f0f2f5; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 90vh; margin: 0; }
     
     /* กล่องหลัก */
     .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
@@ -32,7 +35,7 @@
     button:hover { background-color: #357ae8; }
     button:disabled { background-color: #999; cursor: not-allowed; }
     
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     .progress { color: #666; margin-bottom: 15px; font-weight: 600; }
     .fade-in { animation: fadeIn 0.5s ease-in-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -41,30 +44,32 @@
     h2.summary-head { color: #27ae60; margin-top: 0; }
     .summary-list { text-align: left; margin-top: 20px; max-height: 60vh; overflow-y: auto; padding-right: 5px; }
     
-    .summary-item {
-      background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px;
-      padding: 10px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center;
-    }
-
-    .thumb-img {
-      width: 60px; height: 60px; 
-      object-fit: cover; border-radius: 8px; border: 1px solid #ddd;
-    }
-
+    .summary-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; padding: 10px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+    .thumb-img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
     .answers-box { flex: 1; }
     
-    .ans-tag {
-      display: inline-block; font-size: 0.85rem; padding: 2px 8px;
-      border-radius: 12px; margin: 2px; color: white;
-    }
+    .ans-tag { display: inline-block; font-size: 0.85rem; padding: 2px 8px; border-radius: 12px; margin: 2px; color: white; }
     .c1 { background: #e74c3c; }
     .c2 { background: #3498db; }
     .c3 { background: #2ecc71; }
+
+    /* ✅ Style สำหรับหน้า Loading */
+    #loadingScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f0f2f5; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
+    .spinner { border: 5px solid #ddd; border-top: 5px solid #4285F4; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-  <div class="card" id="formCard">
+  <!-- ✅ หน้าจอ Loading -->
+  <div id="loadingScreen">
+    <div class="spinner"></div>
+    <h3 style="color: #555; margin: 0;">กำลังเตรียมรูปภาพ...</h3>
+    <p style="color: #888; font-size: 0.9rem;" id="loadingText">รอสักครู่</p>
+  </div>
+
+  <!-- ตอนเริ่มต้นให้ซ่อน formCard ไว้ก่อน -->
+  <div class="card hidden" id="formCard">
     <div class="progress" id="progressText">ข้อที่ 1 / 5</div>
     
     <img id="questionImg" src="" alt="Loading..." class="question-img fade-in">
@@ -87,28 +92,45 @@
   </div>
 
   <script>
-    // 🔴🔴🔴 นำ URL ที่ได้จากการ Deploy Google Apps Script มาวางที่นี่ 🔴🔴🔴
+    // 🔴🔴🔴 ตรวจสอบ URL ของ Google Apps Script 🔴🔴🔴
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyCVvKtFClPk6qkSUGmxUNRG7JbiIBhN2gDxRK_PfZnE7RgL34PaDPxWWLbsLFMJmeQqQ/exec"; 
 
     var imageList = [
       "https://i.postimg.cc/76PdMBXR/Slide2-0.png",
-      "https://i.postimg.cc/631jVB86/Slide3-0.png",
+      "https://i.postimg.cc/HnB43218/PDPD.png",
       "https://i.postimg.cc/h4NgcB24/Slide4-0.png",
       "https://i.postimg.cc/1zR1J53n/Slide5-0.png",
       "https://i.postimg.cc/mDJxLYNS/Slide6-0.png"
     ];
 
-    // ✅ OPTIMIZE: โหลดรูปภาพทั้งหมดมารอไว้ล่วงหน้า (Preload) เพื่อให้แสดงผลทันทีไม่ต้องรอเน็ต
-    imageList.forEach((src) => {
-      const img = new Image();
-      img.src = src;
-    });
-
     var currentIndex = 0;
     var userHistory = []; 
 
+    // ✅ ฟังก์ชันโหลดรูปภาพแบบบังคับรอ (Promise.all)
     window.onload = function() {
-      loadState();
+      let loadedCount = 0;
+      const loadingText = document.getElementById('loadingText');
+
+      // สร้าง Array ของ Promise เพื่อให้โหลดภาพทั้งหมดพร้อมกัน
+      const imagePromises = imageList.map((src) => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.src = src;
+          img.onload = () => {
+            loadedCount++;
+            loadingText.innerText = `โหลดสำเร็จ ${loadedCount} / ${imageList.length}`;
+            resolve();
+          };
+          img.onerror = () => resolve(); // หากภาพบางรูปเสีย ก็ให้ข้ามไปเพื่อไม่ให้ค้าง
+        });
+      });
+
+      // เมื่อภาพทั้งหมดถูกโหลดเสร็จแล้ว
+      Promise.all(imagePromises).then(() => {
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('formCard').classList.remove('hidden');
+        loadState();
+      });
     };
 
     function loadState() {
@@ -142,8 +164,15 @@
       var w2 = document.getElementById('w2').value.trim();
       var w3 = document.getElementById('w3').value.trim();
 
+      // ✅ ใช้ SweetAlert2 แทน alert() ธรรมดา
       if(!w1 || !w2 || !w3) {
-        alert("กรุณาเติมคำให้ครบทั้ง 3 ช่องครับ");
+        Swal.fire({
+          icon: 'warning',
+          title: 'ข้อมูลไม่ครบถ้วน',
+          text: 'กรุณาเติมคำให้ครบทั้ง 3 ช่องครับ',
+          confirmButtonColor: '#4285F4',
+          confirmButtonText: 'ตกลง'
+        });
         return;
       }
 
@@ -158,10 +187,8 @@
         w1: w1, w2: w2, w3: w3 
       };
 
-      // ✅ OPTIMIZE: ส่งข้อมูลด้วย fetch แทน google.script.run
       fetch(GAS_URL, {
         method: 'POST',
-        // ใช้ text/plain เพื่อเลี่ยงปัญหา CORS Block จาก Browser
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(data)
       })
@@ -171,14 +198,26 @@
           currentIndex++;
           loadState();
         } else {
-          alert("เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+          // ✅ SweetAlert2 กรณี Error จากฝั่ง Google Script
+          Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์ กรุณาลองใหม่',
+            confirmButtonColor: '#e74c3c'
+          });
           btn.innerText = "ส่งคำตอบ";
           btn.disabled = false;
         }
       })
       .catch(error => {
         console.error("Error:", error);
-        alert("การเชื่อมต่อมีปัญหา กรุณาลองใหม่");
+        // ✅ SweetAlert2 กรณีเน็ตหลุด / หรือเรียก URL ไม่ได้
+        Swal.fire({
+          icon: 'error',
+          title: 'การเชื่อมต่อมีปัญหา',
+          text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่',
+          confirmButtonColor: '#e74c3c'
+        });
         btn.innerText = "ส่งคำตอบ";
         btn.disabled = false;
       });
@@ -206,6 +245,17 @@
           </div>
         `;
       });
+      
+      // แสดงข้อความยินดีเมื่อทำเสร็จ
+      Swal.fire({
+        icon: 'success',
+        title: 'success!',
+        text: '',
+        confirmButtonColor: '#2ecc71',
+        timer: 2000,
+        showConfirmButton: false
+      });
+
       container.innerHTML = html;
     }
   </script>
